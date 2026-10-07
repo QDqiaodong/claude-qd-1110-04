@@ -58,16 +58,23 @@ CREATE TABLE course_schedule (
     CONSTRAINT fk_cs_student FOREIGN KEY (student_id) REFERENCES student (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ---------------- 领用记录（主从：依赖学员 + 画材） ----------------
+-- ---------------- 领用 / 归还记录（画材强依赖；学员仅保留 id 与姓名快照，删除后仍可追溯） ----------------
 CREATE TABLE material_use (
-    id           BIGINT AUTO_INCREMENT PRIMARY KEY,
-    student_id   BIGINT NOT NULL COMMENT '学员 id',
-    material_id  BIGINT NOT NULL COMMENT '画材 id',
-    qty          INT NOT NULL COMMENT '数量',
-    use_date     DATE NOT NULL COMMENT '日期',
-    created_at   DATETIME COMMENT '创建时间',
-    CONSTRAINT fk_mu_student FOREIGN KEY (student_id) REFERENCES student (id),
-    CONSTRAINT fk_mu_material FOREIGN KEY (material_id) REFERENCES art_material (id)
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    student_id      BIGINT NOT NULL COMMENT '学员 id（无外键，档案删除后保留）',
+    student_name    VARCHAR(64) NOT NULL COMMENT '学员姓名快照',
+    material_id     BIGINT NOT NULL COMMENT '画材 id',
+    record_type     VARCHAR(16) NOT NULL COMMENT '领用 / 归还',
+    qty             INT NOT NULL COMMENT '本次数量',
+    use_date        DATE NOT NULL COMMENT '业务日期（本地日期）',
+    related_use_id  BIGINT NULL COMMENT '归还记录对应的原领用记录 id',
+    created_at      DATETIME COMMENT '创建时间',
+    KEY idx_mu_date (use_date),
+    KEY idx_mu_student (student_id),
+    KEY idx_mu_material_date (material_id, use_date),
+    KEY idx_mu_related (related_use_id),
+    CONSTRAINT fk_mu_material FOREIGN KEY (material_id) REFERENCES art_material (id),
+    CONSTRAINT fk_mu_related_use FOREIGN KEY (related_use_id) REFERENCES material_use (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------- 课后成果记录（一课次仅一份；依附课次与学员） ----------------
@@ -102,10 +109,10 @@ INSERT IGNORE INTO student (code, name, phone, level, status, created_at) VALUES
 ('S2026006', '江予安', '13400134006', '艺考', '在读', NOW());
 
 INSERT IGNORE INTO art_material (name, category, stock, unit, status, created_at) VALUES
-('温莎牛顿丙烯颜料', '颜料', 120, '支', '在库', NOW()),
-('榭得堂尼龙画笔',   '画笔', 200, '支', '在库', NOW()),
-('纯棉亚麻画布',     '画布', 60,  '张', '在库', NOW()),
-('马利素描铅笔',     '工具', 300, '支', '在库', NOW()),
+('温莎牛顿丙烯颜料', '颜料', 117, '支', '在库', NOW()),
+('榭得堂尼龙画笔',   '画笔', 195, '支', '在库', NOW()),
+('纯棉亚麻画布',     '画布', 59,  '张', '在库', NOW()),
+('马利素描铅笔',     '工具', 297, '支', '在库', NOW()),
 ('调色刮刀',         '工具', 0,   '把', '停用', NOW()),
 ('刮画刀',           '工具', 15,  '把', '在库', NOW());
 
@@ -117,12 +124,12 @@ INSERT IGNORE INTO course_schedule (student_id, course_name, date, start_min, en
 (6, '艺考素描冲刺', DATE_ADD(CURDATE(), INTERVAL 1 DAY), 780, 900, '待上课', NOW()),
 (2, '成人油画基础', CURDATE(), 720, 780, '已取消', NOW());
 
-INSERT IGNORE INTO material_use (student_id, material_id, qty, use_date, created_at) VALUES
-(1, 1, 2, CURDATE(), NOW()),
-(1, 2, 5, CURDATE(), NOW()),
-(2, 3, 1, CURDATE(), NOW()),
-(5, 4, 3, CURDATE(), NOW()),
-(6, 1, 1, CURDATE(), NOW());
+INSERT IGNORE INTO material_use (student_id, student_name, material_id, record_type, qty, use_date, created_at) VALUES
+(1, '林小满', 1, '领用', 2, CURDATE(), NOW()),
+(1, '林小满', 2, '领用', 5, CURDATE(), NOW()),
+(2, '周慕白', 3, '领用', 1, CURDATE(), NOW()),
+(5, '许清欢', 4, '领用', 3, CURDATE(), NOW()),
+(6, '江予安', 1, '领用', 1, CURDATE(), NOW());
 
 -- 课次 3（成人油画基础 · 已上课）自带一份已归档成果记录，用于详情/档案展示
 INSERT IGNORE INTO course_record

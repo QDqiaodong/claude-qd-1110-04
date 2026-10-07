@@ -30,6 +30,7 @@ async function callFull(promise) {
 }
 
 const params = (o) => ({ params: o })
+const cleanParams = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined))
 
 export default {
   // ---------------- 学员 ----------------
@@ -67,7 +68,10 @@ export default {
   archiveCourseRecord: (scheduleId) => callFull(http.post(`/course-schedules/${scheduleId}/record/archive`)),
   deleteDraftRecord: (scheduleId) => call(http.delete(`/course-schedules/${scheduleId}/record`)),
 
-  // ---------------- 领用记录 ----------------
-  listMaterialUses: () => call(http.get('/material-uses')),
-  createMaterialUse: (d) => call(http.post('/material-uses', d))
+  // ---------------- 领用 / 归还 ----------------
+  listMaterialUses: (query = {}) => call(http.get('/material-uses', params(cleanParams(query)))),
+  listMaterialStudentOptions: () => call(http.get('/material-uses/student-options')),
+  getMaterialBoard: (query = {}) => call(http.get('/material-uses/board', params(cleanParams(query)))),
+  createMaterialUse: (d) => call(http.post('/material-uses', d)),
+  returnMaterialUse: (id, d) => callFull(http.post(`/material-uses/${id}/return`, d || {}))
 }

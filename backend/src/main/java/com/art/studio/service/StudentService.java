@@ -8,7 +8,6 @@ import com.art.studio.common.Dict;
 import com.art.studio.entity.Student;
 import com.art.studio.repository.CourseRecordRepository;
 import com.art.studio.repository.CourseScheduleRepository;
-import com.art.studio.repository.MaterialUseRepository;
 import com.art.studio.repository.StudentRepository;
 
 import org.springframework.stereotype.Service;
@@ -19,14 +18,12 @@ public class StudentService {
 
     private final StudentRepository repo;
     private final CourseScheduleRepository scheduleRepo;
-    private final MaterialUseRepository materialUseRepo;
     private final CourseRecordRepository recordRepo;
 
     public StudentService(StudentRepository repo, CourseScheduleRepository scheduleRepo,
-            MaterialUseRepository materialUseRepo, CourseRecordRepository recordRepo) {
+            CourseRecordRepository recordRepo) {
         this.repo = repo;
         this.scheduleRepo = scheduleRepo;
-        this.materialUseRepo = materialUseRepo;
         this.recordRepo = recordRepo;
     }
 
@@ -112,8 +109,8 @@ public class StudentService {
     }
 
     /**
-     * 删除学员：只要存在排课 / 课后记录 / 领用台账任一条历史数据就阻止，
-     * 避免破坏历史排课、签到与库存台账（同时也保证课后记录引用的学员档案可追溯）。
+     * 删除学员：排课 / 课后记录仍阻止删除；画材领用台账不做数据库外键，
+     * 并保存领用当时的姓名快照，因此仅有领用记录的学员可以删除且历史仍可追溯。
      * 业务上更推荐把状态改为「休学 / 结业」而不是物理删除。
      */
     @Transactional
@@ -121,11 +118,10 @@ public class StudentService {
         Student s = get(id);
         long schedules = scheduleRepo.findByStudentId(id).size();
         long records = recordRepo.findByStudentId(id).size();
-        long uses = materialUseRepo.findByStudentId(id).size();
-        if (schedules > 0 || records > 0 || uses > 0) {
+        if (schedules > 0 || records > 0) {
             throw new BizException("学员「" + s.name + "」已有历史业务数据（排课 " + schedules
-                    + " 条、课后记录 " + records + " 条、领用 " + uses
-                    + " 条），不能删除以免破坏历史台账；如需停用请将状态改为「休学」或「结业」");
+                    + " 条、课后记录 " + records
+                    + " 条），不能删除以免破坏课程历史；如需停用请将状态改为「休学」或「结业」");
         }
         repo.delete(s);
     }

@@ -1,11 +1,13 @@
 <script setup>
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import MaterialConsumptionBoard from '../components/MaterialConsumptionBoard.vue'
 import api from '../api'
 
 const emit = defineEmits(['changed'])
 
 const loading = ref(false)
+const boardKey = ref(0)
 const materials = ref([])
 const category = ref('')
 const status = ref('')
@@ -24,6 +26,7 @@ async function load() {
 }
 
 function resetFilters() { category.value = ''; status.value = ''; load() }
+function refreshBoard() { boardKey.value += 1 }
 
 function addMaterial() {
   editing.value = false
@@ -41,12 +44,14 @@ async function saveMaterial() {
     else await api.createArtMaterial({ ...form })
     ElMessage.success('已保存')
     dialogVisible.value = false
-    await load(); emit('changed')
+    await load()
+    refreshBoard()
+    emit('changed')
   } catch (e) { ElMessage.error(e.message) }
 }
 async function toggleStatus(row) {
   const next = row.status === '在库' ? '停用' : '在库'
-  try { await api.updateArtMaterial(row.id, { status: next }); ElMessage.success(next === '停用' ? '已停用' : '已启用'); await load(); emit('changed') }
+  try { await api.updateArtMaterial(row.id, { status: next }); ElMessage.success(next === '停用' ? '已停用' : '已启用'); await load(); refreshBoard(); emit('changed') }
   catch (e) { ElMessage.error(e.message) }
 }
 
@@ -57,6 +62,7 @@ onMounted(load)
 
 <template>
   <div>
+    <MaterialConsumptionBoard :key="boardKey" />
     <div class="toolbar">
       <div class="filters">
         <el-select v-model="category" placeholder="类别" clearable style="width:120px" @change="load">

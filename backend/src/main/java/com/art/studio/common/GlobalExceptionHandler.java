@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import jakarta.persistence.PessimisticLockException;
 import jakarta.persistence.LockTimeoutException;
@@ -47,6 +48,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 查询参数格式错误：如日期不是 yyyy-MM-dd。
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.fail("查询参数格式有误，请检查日期格式（应为 yyyy-MM-dd）"));
+    }
+
+    /**
      * 并发冲突：同一学员 / 课次正在被另一个请求处理（行锁等待超时）。
      * 课后记录并发、课次取消与重排并发都会走到这里；客户端重试即可，
      * 后到的请求会基于最终状态走幂等分支 / 重新校验，不会产生重复数据或双占时段。
@@ -55,7 +64,7 @@ public class GlobalExceptionHandler {
             LockTimeoutException.class})
     public ResponseEntity<ApiResponse<Void>> handleLock(Exception e) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.fail("该学员的排课 / 课次操作正在被另一个请求处理，请稍后重试（系统按最终状态裁决，不会产生重复排课或重复记录）"));
+                .body(ApiResponse.fail("相关业务正在被另一个请求处理，请稍后重试（系统按最终状态裁决，不会产生重复记录或库存错乱）"));
     }
 
     /**
