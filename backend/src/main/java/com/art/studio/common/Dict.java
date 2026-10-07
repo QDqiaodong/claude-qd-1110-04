@@ -25,6 +25,10 @@ public final class Dict {
     /** 在库 / 停用 */
     public static final List<String> MATERIAL_STATUS = List.of("在库", "停用");
 
+    // ---------------- 领用记录 ----------------
+    /** 领用 / 归还（归还回加库存，净消耗 = 领用 - 归还） */
+    public static final List<String> USE_KINDS = List.of("领用", "归还");
+
     // ---------------- 课程排期 ----------------
     /** 待上课 / 已上课 / 已取消 */
     public static final List<String> COURSE_STATUS = List.of("待上课", "已上课", "已取消");
@@ -55,6 +59,10 @@ public final class Dict {
 
     public static boolean isValidMaterialStatus(String status) {
         return status != null && MATERIAL_STATUS.contains(status);
+    }
+
+    public static boolean isValidUseKind(String kind) {
+        return kind != null && USE_KINDS.contains(kind);
     }
 
     public static boolean isValidCourseStatus(String status) {

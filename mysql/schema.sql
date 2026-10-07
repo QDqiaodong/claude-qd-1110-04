@@ -58,14 +58,19 @@ CREATE TABLE course_schedule (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ---------------- 领用记录（主从：依赖学员 + 画材） ----------------
+-- 说明：student_id 不建外键 —— 仅有领用历史的学员允许删除，删除后台账行保留，
+--       靠 student_name 快照继续追溯「谁领的」；kind 区分领用 / 归还（归还回加库存）。
 CREATE TABLE material_use (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
     student_id   BIGINT NOT NULL COMMENT '学员 id',
+    student_name VARCHAR(64) COMMENT '学员姓名快照（学员删除/改名后历史仍显示原姓名）',
     material_id  BIGINT NOT NULL COMMENT '画材 id',
+    kind         VARCHAR(16) NOT NULL DEFAULT '领用' COMMENT '领用 / 归还',
     qty          INT NOT NULL COMMENT '数量',
     use_date     DATE NOT NULL COMMENT '日期',
     created_at   DATETIME COMMENT '创建时间',
-    CONSTRAINT fk_mu_student FOREIGN KEY (student_id) REFERENCES student (id),
+    KEY idx_mu_student (student_id),
+    KEY idx_mu_material_date (material_id, use_date),
     CONSTRAINT fk_mu_material FOREIGN KEY (material_id) REFERENCES art_material (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -116,12 +121,15 @@ INSERT IGNORE INTO course_schedule (student_id, course_name, date, start_min, en
 (6, '艺考素描冲刺', DATE_ADD(CURDATE(), INTERVAL 1 DAY), 780, 900, '待上课', NOW()),
 (2, '成人油画基础', CURDATE(), 720, 780, '已取消', NOW());
 
-INSERT IGNORE INTO material_use (student_id, material_id, qty, use_date, created_at) VALUES
-(1, 1, 2, CURDATE(), NOW()),
-(1, 2, 5, CURDATE(), NOW()),
-(2, 3, 1, CURDATE(), NOW()),
-(5, 4, 3, CURDATE(), NOW()),
-(6, 1, 1, CURDATE(), NOW());
+INSERT IGNORE INTO material_use (student_id, material_id, qty, use_date, kind, student_name, created_at) VALUES
+(1, 1, 2, CURDATE(), '领用', '林小满', NOW()),
+(1, 2, 5, CURDATE(), '领用', '林小满', NOW()),
+(2, 3, 1, CURDATE(), '领用', '周慕白', NOW()),
+(5, 4, 3, CURDATE(), '领用', '许清欢', NOW()),
+(6, 1, 1, CURDATE(), '领用', '江予安', NOW()),
+-- 一笔归还 + 一笔落在上月月末的领用，便于消耗看板演示净消耗与跨月边界
+(1, 2, 1, CURDATE(), '归还', '林小满', NOW()),
+(5, 4, 1, LAST_DAY(DATE_SUB(CURDATE(), INTERVAL 1 MONTH)), '领用', '许清欢', NOW());
 
 -- 课次 3（成人油画基础 · 已上课）自带一份已归档成果记录，用于详情/档案展示
 INSERT IGNORE INTO course_record
